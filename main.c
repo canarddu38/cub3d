@@ -1,51 +1,41 @@
-#include <unistd.h>
-# include "mlx.h"
-#include <math.h>
-#include <stdlib.h>
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   main.c                                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: julcleme <julcleme@student.42lyon.fr>      +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/12/03 09:56:28 by julcleme          #+#    #+#             */
+/*   Updated: 2025/12/03 18:09:13 by julcleme         ###   ########lyon.fr   */
+/*                                                                            */
+/* ************************************************************************** */
 
-#define RENDER_DISTANCE 10
-#define FOV				60
-#define SCREEN_WIDTH	800
-#define SCREEN_HEIGHT	600
+#include "cub3d.h"
 
-#define KEY_ESC			65307
-#define KEY_RIGHT_ARROW	65363
-#define KEY_DOWN_ARROW	65364
-#define KEY_LEFT_ARROW	65361
-#define KEY_UP_ARROW	65362
-
-typedef struct s_point
-{
-	int	x;
-	int	y;
-}	t_point;
-
-
-char	*map[6] = {
-	"##########",
-	"#        #",
-	"#        #",
-	"#    #   #",
-	"#    #   #",
-	"##########"
-};
-
-double	cast_ray(t_point *player, double angle)
+double	cast_ray(window *win, t_point *local_hit_point, double angle)
 {
 	double	distance = 0.0f;
-	t_point	ray = {player->x, player->y};
-	t_point	direction = {cos(angle), sin(angle)};
-	int	delta_dir = sqrt(direction.x * direction.x + direction.y * direction.y);
-
-	while (distance < RENDER_DISTANCE)
+	t_point	ray = {
+		.x = win->player.pos.x,
+		.y = win->player.pos.y
+	};
+	t_point	direction = {	
+		.x = (double)cos(angle) * RAY_STEP,
+		.y = (double)sin(angle) * RAY_STEP
+	};
+	while (1)
 	{
 		ray.x += direction.x;
 		ray.y += direction.y;
-		if (map[ray.y][ray.x] == '#')
-			return distance;
-		distance += delta_dir;
+		distance += RAY_STEP;
+		if ((int)ray.x < 0 || (int)ray.x >= win->map.size.x || (int)ray.y < 0 || (int)ray.y >= win->map.size.y || distance > RENDER_DISTANCE)
+			return (-1.0f);
+		local_hit_point->x = ray.x - (int)ray.x;
+		local_hit_point->y = ray.y - (int)ray.y;
+		if (win->map.map[(int)ray.y][(int)ray.x] == '1')
+			break;
 	}
-	return (-1);
+	return (distance);
 }
 
 int	close_window(void *mlx)
@@ -55,71 +45,184 @@ int	close_window(void *mlx)
 	return (0);
 }
 
-int	handle_key(int key)
+int	mouse_move(int x, int y, window *win)
 {
-	if (key == KEY_ESC)
-		exit(0);
-	//else if (key == KEY_LEFT_ARROW)
-	//	direction[0] = -1;
-	//else if (key == KEY_RIGHT_ARROW)
-	//	direction[0] = 1;
-	//else if (key == KEY_UP_ARROW)
-	//	direction[1] = 1;
-	//else if (key == KEY_DOWN_ARROW)
-	//	direction[1] = -1;
-	//else
-	//	return (0);
+	int		delta;
+
+	(void)y;
+	delta =  (SCREEN_WIDTH / 2) - x;
+	if (delta > 5)
+		win->player.direction -= 0.05f;
+	else if (delta < -5)
+		win->player.direction += 0.05f;
+	mlx_mouse_move(win->mlx, win->win, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+	return 0;
+}
+
+int move_player(window *win)
+{
+    double nx, ny;
+
+    if (win->keys[KEY_A])
+	{
+		nx = win->player.pos.x + cos(win->player.direction - M_PI / 2) * MOVE_SPEED;
+    	ny = win->player.pos.y + sin(win->player.direction - M_PI / 2) * MOVE_SPEED;
+	}
+    if (win->keys[KEY_D])
+	{
+		nx = win->player.pos.x + cos(win->player.direction + M_PI / 2) * MOVE_SPEED;
+    	ny = win->player.pos.y + sin(win->player.direction + M_PI / 2) * MOVE_SPEED;
+	}
+    if (win->keys[KEY_W])
+    {
+        nx = win->player.pos.x + cos(win->player.direction) * MOVE_SPEED;
+        ny = win->player.pos.y + sin(win->player.direction) * MOVE_SPEED;
+    }
+    if (win->keys[KEY_S])
+    {
+        nx = win->player.pos.x - cos(win->player.direction) * MOVE_SPEED;
+        ny = win->player.pos.y - sin(win->player.direction) * MOVE_SPEED;
+    }
+    if (win->map.map[(int)ny][(int)nx] != '1')
+    {
+        win->player.pos.x = nx;
+    	win->player.pos.y = ny;
+    }
+    if (win->player.direction < 0)
+        win->player.direction += 2 * M_PI;
+    if (win->player.direction >= 2 * M_PI)
+        win->player.direction -= 2 * M_PI;
+    return (0);
+}
+
+void put_image_line(window *win, t_texture *t, int c, int x, int h)
+{
+	int	start = SCREEN_HEIGHT / 2 - h / 2;
+	int	end = SCREEN_HEIGHT / 2 + h / 2;
+	
+	for (int y = 0; y < SCREEN_HEIGHT; y++)
+    {
+		if (y >= start && y <= end)
+			*((unsigned int *)win->addr + (y * win->line_len + x * (win->bpp / 8))) = 
+								*((unsigned int *)(t->addr + (y * t->line_len + c * (t->bpp / 8))));
+    }
+}
+
+void	put_line(window *win, int x, int h, int color)
+{
+	if (x < 0 || x >= SCREEN_WIDTH || h <= 0)
+        return;
+	int	start = SCREEN_HEIGHT / 2 - h / 2;
+	int	end = SCREEN_HEIGHT / 2 + h / 2;
+	char *dst;
+
+	for (int y = 0; y < SCREEN_HEIGHT; y++)
+	{
+		dst = win->addr + (y * win->line_len + x * (win->bpp / 8));
+		if (y >= start && y <= end)
+			*(unsigned int *)dst = color;
+		else
+		{
+			if (y > SCREEN_HEIGHT / 2)
+				*(unsigned int *)dst = win->floor_color;
+			else
+				*(unsigned int *)dst = win->ceiling_color;
+		}
+			
+	}
+}
+
+int	render_frame(window *win)
+{
+	double distance;
+	t_point			local_hit_point;
+	double			rayAngle;
+	int				x;
+	int				height;
+	int				color;
+	unsigned char	c;
+	
+	move_player(win);
+	distance = 0;
+	x = 0;
+	height = 0.0f;
+	c = 0;
+	color = 0;
+	while (x < SCREEN_WIDTH)
+	{
+		rayAngle = win->player.direction - (FOV / 2.0) * M_PI / 180.0 + (x * (FOV / SCREEN_WIDTH) * M_PI / 180.0);
+        distance = cast_ray(win, &local_hit_point, rayAngle);
+        if (distance > 0)
+			height = (int)((SCREEN_HEIGHT / distance) * SCALE_FACTOR);
+		else
+			height = 1;
+		//int base = 255;
+		if (local_hit_point.x <= RAY_STEP)
+			color = 0x00ff00;
+		else if (local_hit_point.x >= 1 - RAY_STEP)
+			color = 0x0000ff;
+		else if (local_hit_point.y <= RAY_STEP)
+			color = 0x00ffff;
+		else if (local_hit_point.y >= 1 - RAY_STEP)
+			color = 0xff00ff;
+		else
+			color = 0xff0000;
+		//c = base - (int)(base * distance / RENDER_DISTANCE);
+		//color = (c << 16) | (c << 8) | c;
+		//put_line(win, x, height, color);
+		put_image_line(win, &win->textures[0], c, x, height);
+        x++;
+	}
+	mlx_put_image_to_window(win->mlx, win->win, win->img, 0, 0);
 	return (0);
 }
 
-void	put_line(window *img, int x, int h, int color)
+int key_press(int key, window *win)
 {
-	char	*dst;
-	int		i;
-
-	i = SCREEN_HEIGHT / 2 - h / 2;
-	if (x < 0 || x >= SCREEN_WIDTH || h < 0 || h >= SCREEN_HEIGHT)
-		return ;
-	while (i < SCREEN_HEIGHT / 2 + h)
+    if (key >= 0 && key < 65536)
+        win->keys[key] = 1;
+    if (key == KEY_ESC)
 	{
-		dst = img->addr + (y * img->line_len + x * (img->bpp / 8));
+		mlx_mouse_show(win->mlx, win->win);
+		exit(0);
 	}
-	*(unsigned int *)dst = color;
+    return 0;
 }
 
-typedef struct window
+int	key_release(int key, window *win)
 {
-	void	*mlx;
-	void	*win;
-	void	*img;
-	void	*addr;
-	int		bpp;
-	int		line_len;
-	int		endian;
-}	window;
+    if (key >= 0 && key < 65536)
+        win->keys[key] = 0;
+    return (0);
+}
 
-int	main(void)
+int	main(int argc, char **argv)
 {
-	window	window;
-	t_point	player		= {5, 3};
-	double	view_dir	= 0.0f;
+	window		win;
 
-	window.mlx = mlx_init();
-	window.win = mlx_new_window(window.mlx, SCREEN_WIDTH, SCREEN_HEIGHT, "cube3d");
-	window.img = mlx_new_image(window.mlx, SCREEN_WIDTH, SCREEN_HEIGHT);
-	window.addr = mlx_get_data_addr(window.img, &window.bpp, &window.line_len, &window.endian);
-	mlx_key_hook(window.win, handle_key, 0);
-	mlx_hook(window.win, 17, 0, close_window, window.mlx);
+	if (argc <= 1)
+		return (1);
+	memset(win.keys, 0, sizeof(win.keys));
+	load_map(argv[1], &win);
 
-	int	x = 0;
-	double distance = 0;
-	while (x < SCREEN_WIDTH)
-	{
-		distance = cast_ray(&player, (view_dir - FOV / 2) + (FOV / x));
-		put_line(&window, x, 1 / distance, 0xffffff);
-		x++;
-	}
+	win.mlx = mlx_init();
+	win.win = mlx_new_window(win.mlx, SCREEN_WIDTH, SCREEN_HEIGHT, "cube3d");
+	win.img = mlx_new_image(win.mlx, SCREEN_WIDTH, SCREEN_HEIGHT);
+	win.addr = mlx_get_data_addr(win.img, &win.bpp, &win.line_len, &win.endian);
 
-	mlx_loop(window.mlx);
-	return 0;
+	mlx_mouse_hide(win.mlx, win.win);
+	mlx_mouse_move(win.mlx, win.win, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+	
+	
+	mlx_hook(win.win, 2, 1L<<0, key_press, &win);
+	mlx_hook(win.win, 3, 1L<<1, key_release, &win);
+    mlx_hook(win.win, 17, 0, close_window, &win);
+
+	mlx_hook(win.win, 6, 1L << 6, mouse_move, &win);
+
+    mlx_loop_hook(win.mlx, render_frame, &win);
+	mlx_loop(win.mlx);
+	unload_map(&win);
+	mlx_mouse_show(win.mlx, win.win);
+	return (0);
 }
