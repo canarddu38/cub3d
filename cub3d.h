@@ -6,7 +6,7 @@
 /*   By: julcleme <julcleme@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 15:06:51 by julcleme          #+#    #+#             */
-/*   Updated: 2025/12/03 18:00:11 by julcleme         ###   ########lyon.fr   */
+/*   Updated: 2025/12/04 15:12:32 by julcleme         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -84,7 +84,10 @@ typedef struct window
 	t_point		spawn_point;
 	int			floor_color;
 	int			ceiling_color;
-	t_texture	textures[4];
+	t_texture	texture_n;
+	t_texture	texture_s;
+	t_texture	texture_e;
+	t_texture	texture_w;
 }	window;
 
 int		load_map(char *path, window *win);

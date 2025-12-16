@@ -6,7 +6,7 @@
 /*   By: julcleme <julcleme@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 09:56:28 by julcleme          #+#    #+#             */
-/*   Updated: 2025/12/03 18:09:13 by julcleme         ###   ########lyon.fr   */
+/*   Updated: 2025/12/04 16:10:10 by julcleme         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -97,14 +97,26 @@ int move_player(window *win)
 
 void put_image_line(window *win, t_texture *t, int c, int x, int h)
 {
-	int	start = SCREEN_HEIGHT / 2 - h / 2;
-	int	end = SCREEN_HEIGHT / 2 + h / 2;
-	
+	int		start = SCREEN_HEIGHT / 2 - h / 2;
+	int		end = SCREEN_HEIGHT / 2 + h / 2;
+	char	*dst;
+	char	*color;
+	double	texture_step = win->texture_n.height / h;
+	double	texture_y = 0.0f;
+
 	for (int y = 0; y < SCREEN_HEIGHT; y++)
     {
+		color = t->addr + ((int)texture_y *   t->line_len + c * (  t->bpp / 8));
+		dst = win->addr + (y * win->line_len + x * (win->bpp / 8));
 		if (y >= start && y <= end)
-			*((unsigned int *)win->addr + (y * win->line_len + x * (win->bpp / 8))) = 
-								*((unsigned int *)(t->addr + (y * t->line_len + c * (t->bpp / 8))));
+		{
+			*(unsigned int *)dst = *(unsigned int *)color;
+			texture_y += texture_step;
+		}
+		else if (y > SCREEN_HEIGHT / 2)
+			*(unsigned int *)dst = win->floor_color;
+		else
+			*(unsigned int *)dst = win->ceiling_color;
     }
 }
 
@@ -157,20 +169,23 @@ int	render_frame(window *win)
 		else
 			height = 1;
 		//int base = 255;
+		//if (local_hit_point.x <= RAY_STEP)
+		//	color = 0x00ff00;
+		//else if (local_hit_point.x >= 1 - RAY_STEP)
+		//	color = 0x0000ff;
+		//else if (local_hit_point.y <= RAY_STEP)
+		//	color = 0x00ffff;
+		//else if (local_hit_point.y >= 1 - RAY_STEP)
+		//	color = 0xff00ff;
+		//else
+		//	color = 0xff0000;
 		if (local_hit_point.x <= RAY_STEP)
-			color = 0x00ff00;
-		else if (local_hit_point.x >= 1 - RAY_STEP)
-			color = 0x0000ff;
-		else if (local_hit_point.y <= RAY_STEP)
-			color = 0x00ffff;
-		else if (local_hit_point.y >= 1 - RAY_STEP)
-			color = 0xff00ff;
+		{
+			color = local_hit_point.y * win->texture_n.width;
+			put_image_line(win, &win->texture_n, color, x, height);
+		}
 		else
-			color = 0xff0000;
-		//c = base - (int)(base * distance / RENDER_DISTANCE);
-		//color = (c << 16) | (c << 8) | c;
-		//put_line(win, x, height, color);
-		put_image_line(win, &win->textures[0], c, x, height);
+			put_line(win, x, height, 0x1e1e1e);
         x++;
 	}
 	mlx_put_image_to_window(win->mlx, win->win, win->img, 0, 0);
@@ -203,16 +218,16 @@ int	main(int argc, char **argv)
 	if (argc <= 1)
 		return (1);
 	memset(win.keys, 0, sizeof(win.keys));
-	load_map(argv[1], &win);
 
 	win.mlx = mlx_init();
-	win.win = mlx_new_window(win.mlx, SCREEN_WIDTH, SCREEN_HEIGHT, "cube3d");
+	win.win = mlx_new_window(win.mlx, SCREEN_WIDTH, SCREEN_HEIGHT, "cub3d");
 	win.img = mlx_new_image(win.mlx, SCREEN_WIDTH, SCREEN_HEIGHT);
 	win.addr = mlx_get_data_addr(win.img, &win.bpp, &win.line_len, &win.endian);
 
+	load_map(argv[1], &win);
+
 	mlx_mouse_hide(win.mlx, win.win);
 	mlx_mouse_move(win.mlx, win.win, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-	
 	
 	mlx_hook(win.win, 2, 1L<<0, key_press, &win);
 	mlx_hook(win.win, 3, 1L<<1, key_release, &win);
