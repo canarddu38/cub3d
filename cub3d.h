@@ -6,7 +6,7 @@
 /*   By: julcleme <julcleme@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 15:06:51 by julcleme          #+#    #+#             */
-/*   Updated: 2025/12/04 15:12:32 by julcleme         ###   ########lyon.fr   */
+/*   Updated: 2025/12/19 19:24:33 by julcleme         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,13 +20,15 @@
 #include "mlx_int.h"
 #include <string.h>
 #include "stdio.h"
+#include <sys/time.h>
 
 #define RENDER_DISTANCE 10.0f
-#define FOV				90.0f
+#define FOV				60.0f
 #define SCREEN_WIDTH	1900
 #define SCREEN_HEIGHT	1500
 #define RAY_STEP		0.01f
-#define MOVE_SPEED		0.05
+#define MOVE_SPEED		1.0
+#define ROT_SPEED		2.0
 #define SCALE_FACTOR	0.5
 
 #define KEY_W			122
@@ -88,6 +90,7 @@ typedef struct window
 	t_texture	texture_s;
 	t_texture	texture_e;
 	t_texture	texture_w;
+	struct timeval last_time;
 }	window;
 
 int		load_map(char *path, window *win);

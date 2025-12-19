@@ -6,7 +6,7 @@
 /*   By: julcleme <julcleme@student.42lyon.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/03 15:09:24 by julcleme          #+#    #+#             */
-/*   Updated: 2025/12/04 15:19:39 by julcleme         ###   ########lyon.fr   */
+/*   Updated: 2025/12/19 19:09:29 by julcleme         ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,12 +40,12 @@ int	load_map(char *path, window *win)
 		else if (!strncmp(line, "NO ", 2) || !strncmp(line, "SO ", 2) || !strncmp(line, "WE ", 2) || !strncmp(line, "EA ", 2))
 		{
 			i = 3;
-			win->texture_n.img = mlx_xpm_file_to_image(win->mlx, "./textures/texture.xpm",
+			win->texture_n.img = mlx_xpm_file_to_image(win->mlx, "./textures/doom_icons/blood_wall2.xpm",
 															&win->texture_n.width,
 															&win->texture_n.height);
 			if (!win->texture_n.img)
 			{
-				printf("Error: failed to load texture.xpm\n");
+				printf("Error: failed to load texture file\n");
 				exit(1);
 			}
 			win->texture_n.addr = mlx_get_data_addr(win->texture_n.img, 
